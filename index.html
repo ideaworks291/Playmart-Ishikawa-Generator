@@ -277,6 +277,7 @@ body.mode-draft-paste .mode-tab.active{color:#1f7a45;border-bottom-color:#1f7a45
     <label class="carrier-label yupack selected"><input type="radio" name="carrier" value="ゆうパック" checked onchange="onCarrierChange();updateCarrierColor()"> ゆうパック</label>
     <label class="carrier-label sagawa"><input type="radio" name="carrier" value="佐川急便" onchange="onCarrierChange();updateCarrierColor()"> 佐川急便</label>
     <label class="carrier-label"><input type="radio" name="carrier" value="JITBOX" onchange="onCarrierChange();updateCarrierColor()"> JITBOX・直接引取</label>
+    <label class="carrier-label"><input type="radio" name="carrier" value="直接引取のみ" onchange="onCarrierChange();updateCarrierColor()"> 直接引取のみ</label>
   </div>
 
   <div style="margin-top:10px">
@@ -551,6 +552,13 @@ const SHIPPING_JITBOX = `<B><FONT SIZE=6>こちらの商品は基本的に石川
 <FONT COLOR=#FBC46C><B>■個人宅へのお届けはできません。取引ナビのお届け先欄には「法人名」やお店等の「屋号・商号」をご入力ください。<BR></B></FONT>
 ■ご落札後メッセージにて「①配送希望日時」「②日中確実にご対応が可能なお電話番号」をご連絡ください。<BR>
 ■取引ナビご要望欄に「JITBOXチャーター便希望」の旨ご記載ください。`;
+
+const SHIPPING_PICKUP_ONLY = `<B><FONT SIZE=6>こちらの商品は基本的に石川県にございます<BR><FONT COLOR=RED>【当方倉庫での直接引取のみ】</FONT>となります。 </FONT><BR>
+
+・メールアドレスのご登録誤りによる連絡の不着が多数発生いたしております。連絡先には必ず正しいメールアドレスをご登録の上、「<FONT COLOR=RED><B>xooew05075@yahoo.co.jp</B></FONT>」の受信許可設定をお願いいたします。<BR>
+・取引ナビご入力より2日経過いたしましても当方からのメールが届きません場合は、受信設定を見直していただきますとともに、「迷惑メールフォルダ」「ゴミ箱」等もご確認ください。<BR>
+
+</FONT>`;
 
 // 属性セレクタ内に文字列を埋め込む際のエスケープ（"と\をエスケープし、崩れた貼付でもクラッシュさせない）
 function escAttr(s) { return String(s).replace(/["\\]/g, '\\$&'); }
@@ -941,7 +949,7 @@ function updateCarrierColor() {
     l.classList.remove('selected');
     if((val==='ゆうパック' && l.classList.contains('yupack')) ||
        (val==='佐川急便' && l.classList.contains('sagawa')) ||
-       (val==='JITBOX' && !l.classList.contains('yupack') && !l.classList.contains('sagawa'))) {
+       (val!=='ゆうパック' && val!=='佐川急便' && !l.classList.contains('yupack') && !l.classList.contains('sagawa') && l.querySelector(`input[value="${val}"]`))) {
       l.classList.add('selected');
     }
   });
@@ -949,7 +957,7 @@ function updateCarrierColor() {
 
 function onCarrierChange() {
   const v = document.querySelector('input[name=carrier]:checked').value;
-  document.getElementById('size-normal-area').classList.toggle('hidden', v==='JITBOX');
+  document.getElementById('size-normal-area').classList.toggle('hidden', v!=='ゆうパック' && v!=='佐川急便');
   document.getElementById('size-jitbox-area').classList.toggle('hidden', v!=='JITBOX');
 }
 
@@ -1099,6 +1107,8 @@ function updateShippingSummary() {
   let text;
   if(carrier === 'JITBOX') {
     text = 'JITBOX';
+  } else if(carrier === '直接引取のみ') {
+    text = '直接引取のみ';
   } else if(multiChk && multiVal) {
     text = '複数個口';
   } else {
@@ -1309,6 +1319,8 @@ function generate() {
       if(h||w||d) jitboxShort += ` H約${h}mm×W約${w}mm×D約${d}mm`;
       if(jitboxWeightChk && jitboxWeightFmt) jitboxShort += ` ${jitboxWeightFmt}`;
     }
+  } else if(carrier === '直接引取のみ') {
+    sizeLines += `・★【当方倉庫での直接引取のみ】<BR>`;
   } else if(multiChk && multiVal) {
     sizeLines += `・★【${carrier}・${multiVal}】<BR>`;
     if(weightChk && weightFmt) sizeLines += `\n・★【重量：${weightFmt}】<BR>`;
@@ -1322,6 +1334,8 @@ function generate() {
   let sizeShort;
   if(carrier === 'JITBOX') {
     sizeShort = jitboxShort;
+  } else if(carrier === '直接引取のみ') {
+    sizeShort = '直接引取のみ';
   } else {
     sizeShort = (multiChk && multiVal) ? `${carrier}${multiVal}` : `${carrier}${sizeFmt}`;
     if(weightChk && weightFmt) sizeShort = `${weightFmt} ${sizeShort}`;
@@ -1339,6 +1353,8 @@ function generate() {
   let shippingSection = '';
   if(carrier === 'JITBOX') {
     shippingSection = SHIPPING_JITBOX;
+  } else if(carrier === '直接引取のみ') {
+    shippingSection = SHIPPING_PICKUP_ONLY;
   } else if(multiChk && multiVal) {
     shippingSection = `<B><FONT SIZE=5>こちらの商品は<FONT COLOR=RED>【${carrier}・${multiVal}】</FONT>での発送となります。 </FONT><BR>
 石川県にございます当方倉庫での直接引取をご希望の場合、取引ナビのメッセージにて必ずその旨をお知らせ下さい。<BR>
@@ -1371,7 +1387,7 @@ function generate() {
 ・★多少の傷や汚れ等、使用感・経年感が見受けられる外観となります。<BR>
 ${appLines}
 <BR><BR></TD></TR><TR><TD ALIGN=left>
-${(cat === 'other' || cat === 'percussion' || !opToggle) ? '' : `<B><FONT SIZE=3 COLOR=#FBC46C>◆</FONT><FONT SIZE=3 COLOR=#000000>動作</FONT><FONT SIZE=3 COLOR=#FBC46C>◆</FONT></B><BR><HR WIDTH=100%>
+${!opToggle ? '' : `<B><FONT SIZE=3 COLOR=#FBC46C>◆</FONT><FONT SIZE=3 COLOR=#000000>動作</FONT><FONT SIZE=3 COLOR=#FBC46C>◆</FONT></B><BR><HR WIDTH=100%>
 
 ${opLines}
 <BR><BR>`}</TD></TR><TR><TD ALIGN=left>
@@ -2024,6 +2040,10 @@ function parsePastedMemo() {
           document.getElementById('jitbox-weight-input').value = wM[1];
         }
       }
+      sizeMatched = true;
+    } else if(sizeRaw === '直接引取のみ') {
+      document.querySelector('input[name=carrier][value="直接引取のみ"]').checked = true;
+      onCarrierChange(); updateCarrierColor();
       sizeMatched = true;
     } else {
       // 重量パート抜き出し
