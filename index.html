@@ -317,6 +317,15 @@ body.mode-draft-paste .mode-tab.active{color:#1f7a45;border-bottom-color:#1f7a45
         </div>
       </div>
     </div>
+    <div id="drum-diameter-area" class="hidden" style="margin-top:10px">
+      <label style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px">
+        <input type="checkbox" id="drum-diameter-chk" onchange="toggleDrumDiameter()"> 直径を記載する（スネアドラム等）
+      </label>
+      <div id="drum-diameter-input-area" class="hidden" style="margin-top:8px">
+        <input type="text" id="drum-diameter-input" placeholder="例：36" oninput="this.style.borderColor='';this.style.background='';updateDrumDiameterPreview()">
+        <div id="drum-diameter-preview" style="font-size:11px;color:#888;margin-top:4px"></div>
+      </div>
+    </div>
     <div id="weight-area" style="margin-top:10px">
       <span class="lbl"><label><input type="checkbox" id="weight-chk" onchange="toggleWeight()"> 重量を記載する</label></span>
       <input type="text" id="weight-input" placeholder="例：2.4" class="hidden" style="margin-top:4px">
@@ -658,6 +667,15 @@ function selCat(btn) {
     weightChk.checked = false;
     weightInput.classList.add('hidden');
   }
+  // ドラム選択時：直径入力（任意）エリアを表示。カテゴリ切替時はチェックをリセット
+  const isDrum = currentCat === 'drum';
+  document.getElementById('drum-diameter-area').classList.toggle('hidden', !isDrum);
+  if(!isDrum) {
+    document.getElementById('drum-diameter-chk').checked = false;
+    document.getElementById('drum-diameter-input-area').classList.add('hidden');
+    document.getElementById('drum-diameter-input').value = '';
+    document.getElementById('drum-diameter-preview').textContent = '';
+  }
   // バイオリン選択時：楽器種別／サイズ選択エリアを表示し、バイオリン・未選択をデフォルトに
   const isViolin = currentCat === 'violin';
   document.getElementById('violin-type-area').classList.toggle('hidden', !isViolin);
@@ -689,6 +707,28 @@ function updateCymbalDiameterPreview() {
   if(!cm || isNaN(num)) { preview.textContent = ''; return; }
   const inch = nearestCymbalInch(num);
   preview.textContent = `→ ${inch}インチ／${num}cm`;
+}
+
+const STANDARD_DRUM_INCHES = [6,8,10,12,13,14,15,16,18,20,22,24,26];
+
+function nearestDrumInch(cm) {
+  const rawInch = cm / 2.54;
+  return STANDARD_DRUM_INCHES.reduce((prev, curr) =>
+    Math.abs(curr - rawInch) < Math.abs(prev - rawInch) ? curr : prev
+  );
+}
+
+function updateDrumDiameterPreview() {
+  const cm = document.getElementById('drum-diameter-input').value.trim();
+  const preview = document.getElementById('drum-diameter-preview');
+  const num = parseFloat(cm);
+  if(!cm || isNaN(num)) { preview.textContent = ''; return; }
+  const inch = nearestDrumInch(num);
+  preview.textContent = `→ ${inch}インチ／${num}cm`;
+}
+
+function toggleDrumDiameter() {
+  toggleHiddenByChk('drum-diameter-chk', 'drum-diameter-input-area');
 }
 
 function selRank(btn) {
@@ -1102,6 +1142,10 @@ function updateShippingSummary() {
   const cymbalDiameterVal = document.getElementById('cymbal-diameter-input').value.trim();
   const cymbalDiameterNum = parseFloat(cymbalDiameterVal);
   const cymbalDiameterFmt = (cat === 'cymbal' && !isNaN(cymbalDiameterNum)) ? `${nearestCymbalInch(cymbalDiameterNum)}インチ／${cymbalDiameterNum}cm` : '';
+  const drumDiameterChk = document.getElementById('drum-diameter-chk').checked;
+  const drumDiameterVal = document.getElementById('drum-diameter-input').value.trim();
+  const drumDiameterNum = parseFloat(drumDiameterVal);
+  const drumDiameterFmt = (cat === 'drum' && drumDiameterChk && !isNaN(drumDiameterNum)) ? `${nearestDrumInch(drumDiameterNum)}インチ／${drumDiameterNum}cm` : '';
   const violinSizeFmt = (cat === 'violin') ? document.getElementById('violin-size-select').value : '';
 
   let text;
@@ -1117,6 +1161,7 @@ function updateShippingSummary() {
     text = `${carrier}${sizeFmt}`;
   }
   if(cymbalDiameterFmt) text = `直径${cymbalDiameterFmt} ${text}`;
+  if(drumDiameterFmt) text = `直径${drumDiameterFmt} ${text}`;
   if(violinSizeFmt) text = `${VIOLIN_TYPE_LABEL[violinType]}${violinSizeFmt} ${text}`;
 
   const rank = currentRank;
@@ -1180,6 +1225,10 @@ function generate() {
   }
   const cymbalDiameterNum = parseFloat(cymbalDiameterVal);
   const cymbalDiameterFmt = (cat === 'cymbal' && !isNaN(cymbalDiameterNum)) ? `${nearestCymbalInch(cymbalDiameterNum)}インチ／${cymbalDiameterNum}cm` : '';
+  const drumDiameterChk = document.getElementById('drum-diameter-chk').checked;
+  const drumDiameterVal = document.getElementById('drum-diameter-input').value.trim();
+  const drumDiameterNum = parseFloat(drumDiameterVal);
+  const drumDiameterFmt = (cat === 'drum' && drumDiameterChk && !isNaN(drumDiameterNum)) ? `${nearestDrumInch(drumDiameterNum)}インチ／${drumDiameterNum}cm` : '';
   const violinSizeFmt = (cat === 'violin') ? document.getElementById('violin-size-select').value : '';
   const sizeVal = document.getElementById('size-input').value.trim();
   const multiChkEarly = document.getElementById('multi-chk').checked;
@@ -1282,6 +1331,7 @@ function generate() {
   const normalDimsFmt = (dimH||dimW||dimD) ? `H約${dimH||'?'}mm×W約${dimW||'?'}mm×D約${dimD||'?'}mm` : '';
   let sizeLines = '';
   if(cymbalDiameterFmt) sizeLines += `・★【直径：${cymbalDiameterFmt}】<BR>\n`;
+  if(drumDiameterFmt) sizeLines += `・★【直径：${drumDiameterFmt}】<BR>\n`;
   if(violinSizeFmt) sizeLines += `・★【サイズ：${VIOLIN_TYPE_LABEL[violinType]}${violinSizeFmt}】<BR>\n`;
   let jitboxShort = '';
   if(carrier === 'JITBOX') {
@@ -1342,6 +1392,7 @@ function generate() {
     if(normalDimsChk && normalDimsFmt) sizeShort = `${sizeShort} ${normalDimsFmt}`;
   }
   if(cymbalDiameterFmt) sizeShort = `直径${cymbalDiameterFmt} ${sizeShort}`;
+  if(drumDiameterFmt) sizeShort = `直径${drumDiameterFmt} ${sizeShort}`;
   if(violinSizeFmt) sizeShort = `${VIOLIN_TYPE_LABEL[violinType]}${violinSizeFmt} ${sizeShort}`;
 
   // 付属品
@@ -1658,6 +1709,14 @@ function resetAll() {
   document.getElementById('cymbal-diameter-area').classList.toggle('hidden', currentCat !== 'cymbal');
   document.getElementById('weight-area').classList.toggle('hidden', currentCat === 'cymbal');
 
+  document.getElementById('drum-diameter-chk').checked = false;
+  document.getElementById('drum-diameter-input-area').classList.add('hidden');
+  document.getElementById('drum-diameter-input').value = '';
+  document.getElementById('drum-diameter-input').style.borderColor = '';
+  document.getElementById('drum-diameter-input').style.background = '';
+  document.getElementById('drum-diameter-preview').textContent = '';
+  document.getElementById('drum-diameter-area').classList.toggle('hidden', currentCat !== 'drum');
+
   violinType = 'violin';
   document.querySelector('input[name="violin-type"][value="violin"]').checked = true;
   document.getElementById('violin-type-area').classList.toggle('hidden', currentCat !== 'violin');
@@ -1968,13 +2027,21 @@ function parsePastedMemo() {
   // サイズ復元
   let sizeRaw = (data['サイズ']||'').trim();
   let sizeMatched = false;
-  // シンバル直径の復元
+  // シンバル／ドラムの直径復元
   document.getElementById('cymbal-diameter-area').classList.toggle('hidden', cat !== 'cymbal');
   document.getElementById('weight-area').classList.toggle('hidden', cat === 'cymbal');
+  document.getElementById('drum-diameter-area').classList.toggle('hidden', cat !== 'drum');
   const diaM = sizeRaw.match(/直径約?[\d.]+インチ／([\d.]+)cm\s*/);
   if(diaM) {
-    document.getElementById('cymbal-diameter-input').value = diaM[1];
-    updateCymbalDiameterPreview();
+    if(cat === 'drum') {
+      document.getElementById('drum-diameter-chk').checked = true;
+      toggleDrumDiameter();
+      document.getElementById('drum-diameter-input').value = diaM[1];
+      updateDrumDiameterPreview();
+    } else {
+      document.getElementById('cymbal-diameter-input').value = diaM[1];
+      updateCymbalDiameterPreview();
+    }
     sizeRaw = sizeRaw.replace(/直径約?[\d.]+インチ／[\d.]+cm\s*/,'').trim();
   }
   // バイオリン系：楽器種別＋サイズの復元
